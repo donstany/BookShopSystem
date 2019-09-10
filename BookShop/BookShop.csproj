@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\BookShop.Common\BookShop.Common.csproj" />
+    <ProjectReference Include="..\BookShop.Data\BookShop.Data.csproj" />
+    <ProjectReference Include="..\BookShop.Initializer\BookShop.Initializer.csproj" />
+    <ProjectReference Include="..\BookShop.Models\BookShop.Models.csproj" />
+  </ItemGroup>
+
+</Project>
