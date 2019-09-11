@@ -26,7 +26,7 @@
 
             context.SaveChanges();
 
-            Console.WriteLine("Sample data inserted successfully.");
+            Console.WriteLine($"Sample data inserted successfully.{Environment.NewLine}");
         }
     }
 }
