@@ -31,7 +31,9 @@
                 //Console.WriteLine(CountBooks(db, 12));
                 //Console.WriteLine(CountCopiesByAuthor(db));
                 //Console.WriteLine(GetTotalProfitByCategory(db));
-                Console.WriteLine(GetMostRecentBooks(db));
+                //Console.WriteLine(GetMostRecentBooks(db));
+                //Console.WriteLine(IncreasePrices(db));
+                Console.WriteLine(RemoveBooks(db));
                 Console.ReadKey();
             }
         }
@@ -202,7 +204,15 @@
         //13. Most Recent Books
         // Get the most recent books by categories.The categories should be ordered by name alphabetically.
         // Only the top 3 most recent books from each category - ordered by release date (descending). 
-        // Select and print the category name, and for each book – its title and release year.
+        // Select and print the category name, and for each book – its title and release year. Output must be like:
+        //--Action
+        //Brandy ofthe Damned(2015)
+        //Bonjour Tristesse(2013)
+        //By Grand Central Station I Sat Down and Wept(2010)
+        //--Adventure
+        //The Cricket on the Hearth(2013)
+        //Dance Dance Dance(2002)
+        //Cover Her Face(2000)
         public static string GetMostRecentBooks(BookShopContext context)
         {
             var resultFromQuery = context.Categories
@@ -222,20 +232,47 @@
             foreach (var itemOuter in resultFromQuery)
             {
                 var categoryName = itemOuter.CategoryName;
-                var aggregateLines = string.Empty;
+                var aggregateLinesInCategory = string.Empty;
 
                 foreach (var itemInner in itemOuter.RecentBooks)
                 {
                     var linesOfBookTitleYear = itemInner.Select(x => x.Title + " (" + x.ReleaseDate.GetValueOrDefault().Year + ")");
-                    aggregateLines = linesOfBookTitleYear.Aggregate(new StringBuilder(),
+                    aggregateLinesInCategory = linesOfBookTitleYear.Aggregate(new StringBuilder(),
                                                                         (sb, x) => sb.AppendLine(x),
                                                                         sb => sb.ToString());
                 }
 
-                finalResult += ($"--{categoryName}{Environment.NewLine}{aggregateLines}");
+                finalResult += ($"--{categoryName}{Environment.NewLine}{aggregateLinesInCategory}");
             }
 
             return finalResult;
+        }
+
+        //14. Increase Prices
+        //Increase the prices of all books released before 2010 by 5.
+        private static string IncreasePrices(BookShopContext context)
+        {
+            var result = context.Books
+                                .Where(x => x.ReleaseDate.GetValueOrDefault().Year < 2010)
+                                .Select(c => new { OldPrice = c.Price, NewPrice = (c.Price + 5) })
+                                .ToList();
+
+            //return result.BuildStringFromDTO(separator: " -> ", currencySymbol: "$", pricePropertyName: "OldPrice");
+            return result.BuildStringFromDTO(separator: " -> ", currencySymbol: "$", pricesProps: new string[] { "NewPrice", "OldPrice" });
+        }
+
+        //15. Remove Books
+        //Remove all books, which have less than 4200 copies. Return an int - the number of books that were deleted from the database.
+        //Output 34
+        public static int RemoveBooks(BookShopContext context)
+        {
+            var itemsForDeleting = context.Books.Where(x => x.Copies < 4200);
+
+            context.Books.RemoveRange(itemsForDeleting);
+            var result = itemsForDeleting.Count();
+            context.SaveChanges();
+
+            return result;
         }
     }
 }
