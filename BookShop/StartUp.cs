@@ -26,7 +26,12 @@
                 //Console.WriteLine(GetBooksByCategory(db, new string[] { "horror", "mystery", "drama" }));
                 //Console.WriteLine(GetBooksReleasedBefore(db, "30-12-1989"));
                 //Console.WriteLine(GetAuthorNamesEndingIn(db, "dy"));
-                Console.WriteLine(GetBookTitlesContaining(db, "WOR"));
+                //Console.WriteLine(GetBookTitlesContaining(db, "WOR"));
+                //Console.WriteLine(GetBooksByAuthor(db, "po"));
+                //Console.WriteLine(CountBooks(db, 12));
+                //Console.WriteLine(CountCopiesByAuthor(db));
+                //Console.WriteLine(GetTotalProfitByCategory(db));
+                Console.WriteLine(GetMostRecentBooks(db));
                 Console.ReadKey();
             }
         }
@@ -60,7 +65,6 @@
         public static string GetBooksByPrice(BookShopContext context)
         {
             var result = context.Books.Where(book => book.Price > 40)
-                                        //.Select(x => new { x.Title, x.Price })
                                         .OrderByDescending(x => x.Price)
                                         .Select(x => new { x.Title, x.Price }).ToList();
 
@@ -132,11 +136,106 @@
         public static string GetBookTitlesContaining(BookShopContext context, string input)
         {
             var result = context.Books.Where(x => x.Title.ToLower().Contains(input))
-                                        .Select(x => x.Title)
-                                        .OrderBy(x => x)
-                                        .ToList();
+                                      .Select(x => x.Title)
+                                      .OrderBy(x => x)
+                                      .ToList();
             return result.JoinWithNewLine();
         }
+        //9. Book Search by Author
+        //Return all titles of books and their authors’ names for books, which are written by authors whose last names start with the given string.
+        //Ignore casing.Order by book id ascending. R -> The Heart Is Deceitful Above All Things (Bozhidara Rysinova),  His Dark Materials(Bozhidara Rysinova), The Heart Is a Lonely Hunter(Bozhidara Rysinova)
+        public static string GetBooksByAuthor(BookShopContext context, string input)
+        {
+            var result = context.Books.Include(x => x.Author)
+                                      .Where(x => x.Author.LastName.ToLower().StartsWith(input))
+                                      .OrderBy(x => x.BookId)
+                                      .Select(x => Tuple.Create(x.Title, "(" + x.Author.FirstName + " " + x.Author.LastName + ")"))
+                                      .ToList();
+            return result.BuildStringFromDTO();
+        }
 
+        //10. Count Books
+        //Return the number of books, which have a title longer than the number given as an input.
+        public static int CountBooks(BookShopContext context, int lengthCheck)
+        {
+            var result = context.Books.Where(x => x.Title.Length > lengthCheck).Count();
+            return result;
+        }
+
+        //11. Total Book Copies
+        //Return the total number of book copies for each author.Order the results descending by total book copies
+        public static string CountCopiesByAuthor(BookShopContext context)
+        {
+            var result = context.Books.Include(x => x.Author)
+                                        .GroupBy(x => new { x.Author.FirstName, x.Author.LastName },
+                                                    (x, y) => new
+                                                    {
+                                                        AuthorName = (x.FirstName + " " + x.LastName),
+                                                        SumOfCopies = y.Sum(z => z.Copies)
+                                                    })
+                                        .OrderByDescending(x => x.SumOfCopies).ToList();
+
+            return result.BuildStringFromDTO(separator: " - ");
+        }
+
+        //12.Profit by Category
+        //Return the total profit of all books by category.Profit for a book can be calculated by multiplying its number of copies by the price per single book.
+        //Order the results by descending by total profit for category and ascending by category name.
+        //Art $6428917.79
+        public static string GetTotalProfitByCategory(BookShopContext context)
+        {
+            var result = context.BooksCategories.Include(x => x.Book).Include(x => x.Category)
+                                                .GroupBy(x => x.Category.Name,
+                                                                (x, y) => new
+                                                                {
+                                                                    CategoryName = x,
+                                                                    TotalProfit = y.Sum(z => z.Book.Price * z.Book.Copies)
+                                                                })
+                                                .OrderByDescending(x => x.TotalProfit)
+                                                .ThenBy(x => x.CategoryName)
+                                                .ToList();
+
+            return result.BuildStringFromDTO(currencySymbol: "$", pricePropertyName: "TotalProfit");
+        }
+
+
+        //13. Most Recent Books
+        // Get the most recent books by categories.The categories should be ordered by name alphabetically.
+        // Only the top 3 most recent books from each category - ordered by release date (descending). 
+        // Select and print the category name, and for each book – its title and release year.
+        public static string GetMostRecentBooks(BookShopContext context)
+        {
+            var resultFromQuery = context.Categories
+                                           .Include(x => x.CategoryBooks).ThenInclude(x => x.Book)
+                                           .GroupBy(x => x.Name,
+                                                        (x, y) => new
+                                                        {
+                                                            CategoryName = x,
+                                                            RecentBooks = y.Select(z => z.CategoryBooks
+                                                                                            .Select(a => new { a.Book.Title, a.Book.ReleaseDate })
+                                                                                            .OrderByDescending(b => b.ReleaseDate).Take(3)
+                                                                                   )
+                                                        })
+                                           .ToList();
+
+            var finalResult = string.Empty;
+            foreach (var itemOuter in resultFromQuery)
+            {
+                var categoryName = itemOuter.CategoryName;
+                var aggregateLines = string.Empty;
+
+                foreach (var itemInner in itemOuter.RecentBooks)
+                {
+                    var linesOfBookTitleYear = itemInner.Select(x => x.Title + " (" + x.ReleaseDate.GetValueOrDefault().Year + ")");
+                    aggregateLines = linesOfBookTitleYear.Aggregate(new StringBuilder(),
+                                                                        (sb, x) => sb.AppendLine(x),
+                                                                        sb => sb.ToString());
+                }
+
+                finalResult += ($"--{categoryName}{Environment.NewLine}{aggregateLines}");
+            }
+
+            return finalResult;
+        }
     }
 }

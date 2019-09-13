@@ -25,7 +25,7 @@ namespace BookShop.Common.Extentions
             {
                 foreach (var property in properties)
                 {
-                    if (property.Name.Trim().ToLower() == pricePropertyName)
+                    if (property.Name.Trim().ToLower() == pricePropertyName.Trim().ToLower())
                     {
                         sb.Append(currencySymbol + property.GetValue(item));
                     }
